@@ -1,0 +1,678 @@
+//definition of the study area
+print(sc)
+var roi = sc.filter(ee.Filter.inList('NM_MICRO', ['Araranguá']))//, 'Criciúma', 'Tubarão']))
+var empty = ee.Image().byte(); 
+////defining the contour
+var contour = empty.paint({featureCollection: roi, color: 1, width: 2});
+Map.addLayer(contour, {palette: 'Red'}, 'roi');
+
+//centralizing the view
+Map.centerObject(roi, 10)
+
+//creating a 10km x 10km grid to help create a training sampling
+var roipolygons = ee.FeatureCollection(ee.FeatureCollection(roi).geometry().coveringGrid('EPSG:4326', 10000))
+print(roipolygons)
+var empty = ee.Image().byte(); 
+//defining the contour
+var contour = empty.paint({featureCollection: roipolygons, color: 1, width: 2});
+//Adicionando o Contorno da região de interesee
+//Map.addLayer(contour, {palette: 'Blue'}, 'GRID');
+//print(contour, null, 'grid')
+
+
+//Mask cloud function 
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+  // Os bits 10 e 11 são nuvens e cirros, respectivamente.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  // Ambos os sinalizadores devem ser definidos como zero, indicando condições claras.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask).divide(10000);
+}
+
+//creating variables for training from sentinel 2 data
+
+///all Year
+// define date
+var period_of_interest = ee.Filter.date('2023-01-01', '2023-12-31');
+
+//selecting sentinel images and defining parameters
+var dataset = ee.ImageCollection('COPERNICUS/S2_SR')
+                  .filter(period_of_interest)
+                  .filterBounds(roi)
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',10))
+                  .map(maskS2clouds);
+
+print("2 - Sentinel 2 Image Collection",dataset)
+print("3 - How much Sentinel 2 images we have? all",dataset.size())
+
+// Calculating band median
+var b2 = dataset.select('B2').median().clip(roi).rename('B2_all')
+var b3 = dataset.select('B3').median().clip(roi).rename('B3_all')
+var b4 = dataset.select('B4').median().clip(roi).rename('B4_all')
+var b5 = dataset.select('B5').median().clip(roi).rename('B5_all')
+var b6 = dataset.select('B6').median().clip(roi).rename('B6_all')
+var b7 = dataset.select('B7').median().clip(roi).rename('B7_all')
+var b8 = dataset.select('B8').median().clip(roi).rename('B8_all')
+var b8A = dataset.select('B8A').median().clip(roi).rename('B8A_all')
+var b11 = dataset.select('B11').median().clip(roi).rename('B11_all')
+var b12 = dataset.select('B12').median().clip(roi).rename('B12_all')
+
+//creating spectral index
+//ndvi
+var ndvi = b8.subtract(b4).divide(b8.add(b4)).rename('NDVI_all')
+//Map.addLayer(ndvi, null, 'ndvi')
+
+//ndvi B8A
+var ndvi_8 = b8A.subtract(b4).divide(b8A.add(b4)).rename('NDVI_8_all')
+//Map.addLayer(ndvi, null, 'ndvi')
+
+//ndvi_7
+var ndvi_7 = b7.subtract(b4).divide(b7.add(b4)).rename('NDVI_7_all')
+//Map.addLayer(ndvi_7, null, 'ndvi_7')
+
+//ndvi_6
+var ndvi_6 = b6.subtract(b4).divide(b6.add(b4)).rename('NDVI_6_all')
+//Map.addLayer(ndvi_6, null, 'ndvi_6')
+
+//ndvi_5
+var ndvi_5 = b5.subtract(b4).divide(b5.add(b4)).rename('NDVI_5_all')
+//Map.addLayer(ndvi_5, null, 'ndvi_5')
+
+//Bare Soil Index
+var bsi = b4.add(b11).subtract(b8.add(b2)).divide(b4.add(b11).add(b8.add(b2))).rename('BSI_all')
+//Map.addLayer(bsi, null, 'bsi')
+
+//mndwi
+var mndwi = b3.subtract(b11).divide(b3.add(b11)).rename('MNDWI_all')//Xu 2005
+//Map.addLayer(mndwi, null, 'mndwi')
+
+//ndwi
+var ndwi = b3.subtract(b8).divide(b3.add(b8)).rename('NDWI_all')//Mc Feeters 1996
+//Map.addLayer(ndwi, null, 'ndwi')
+
+
+///////////////////////////////////////////////////January to march
+// define date
+var period_of_interest = ee.Filter.date('2023-01-01', '2023-03-31');
+
+//selecting sentinel images and defining parameters
+var dataset = ee.ImageCollection('COPERNICUS/S2_SR')
+                  .filter(period_of_interest)
+                  .filterBounds(roi)
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',10))
+                  .map(maskS2clouds);
+
+print("2 - Sentinel 2 Image Collection",dataset)
+print("3 - How much Sentinel 2 images we have? 1" ,dataset.size())
+
+// Calculating band median
+var b21 = dataset.select('B2').median().clip(roi).rename('B2_first')
+var b31 = dataset.select('B3').median().clip(roi).rename('B3_first')
+var b41 = dataset.select('B4').median().clip(roi).rename('B4_first')
+var b51 = dataset.select('B5').median().clip(roi).rename('B5_first')
+var b61 = dataset.select('B6').median().clip(roi).rename('B6_first')
+var b71 = dataset.select('B7').median().clip(roi).rename('B7_first')
+var b81 = dataset.select('B8').median().clip(roi).rename('B8_first')
+var b8A1 = dataset.select('B8A').median().clip(roi).rename('B8A_first')
+var b111 = dataset.select('B11').median().clip(roi).rename('B11_first')
+var b121 = dataset.select('B12').median().clip(roi).rename('B12_first')
+
+////creating spectral index
+//ndvi
+var ndvi1 = b81.subtract(b41).divide(b81.add(b41)).rename('NDVI_first')
+//Map.addLayer(ndvi1, null, 'ndvi1')
+
+//ndvi B8A
+var ndvi_81 = b8A1.subtract(b4).divide(b8A1.add(b4)).rename('NDVI_8A_first')
+//Map.addLayer(ndvi, null, 'ndvi')
+
+//ndvi_7
+var ndvi_71 = b71.subtract(b41).divide(b71.add(b41)).rename('NDVI_7_first')
+//Map.addLayer(ndvi_71, null, 'ndvi_71')
+
+//ndvi_6
+var ndvi_61 = b61.subtract(b41).divide(b61.add(b41)).rename('NDVI_6_first')
+//Map.addLayer(ndvi_61, null, 'ndvi_61')
+
+//ndvi_5
+var ndvi_51 = b51.subtract(b41).divide(b51.add(b41)).rename('NDVI_5_first')
+//Map.addLayer(ndvi_51, null, 'ndvi_51')
+
+//Bare Soil Index
+var bsi1 = b41.add(b11).subtract(b81.add(b21)).divide(b41.add(b111).add(b81.add(b21))).rename('BSI_first')
+//Map.addLayer(bsi1, null, 'bsi1')
+
+//mndwi
+var mndwi1 = b31.subtract(b111).divide(b31.add(b111)).rename('MNDWI_first')//Xu 2005
+//Map.addLayer(mndwi, null, 'mndwi')
+
+//ndwi
+var ndwi1 = b3.subtract(b8).divide(b3.add(b8)).rename('NDWI_first')//Mc Feeters 1996
+//Map.addLayer(ndwi1, null, 'ndwi1')
+
+///////////////////////////////////////////////////April to juny
+// define date
+var period_of_interest = ee.Filter.date('2023-04-01', '2023-06-30');
+
+//selecting sentinel images and defining parameters
+var dataset = ee.ImageCollection('COPERNICUS/S2_SR')
+                  .filter(period_of_interest)
+                  .filterBounds(roi)
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',10))
+                  .map(maskS2clouds);
+
+print("2 - Sentinel 2 Image Collection",dataset)
+print("3 - How much Sentinel 2 images we have? 2",dataset.size())
+
+// Calculating band median
+var b22 = dataset.select('B2').median().clip(roi).rename('B2_second')
+var b32 = dataset.select('B3').median().clip(roi).rename('B3_second')
+var b42 = dataset.select('B4').median().clip(roi).rename('B4_second')
+var b52 = dataset.select('B5').median().clip(roi).rename('B5_second')
+var b62 = dataset.select('B6').median().clip(roi).rename('B6_second')
+var b72 = dataset.select('B7').median().clip(roi).rename('B7_second')
+var b82 = dataset.select('B8').median().clip(roi).rename('B8_second')
+var b8A2 = dataset.select('B8A').median().clip(roi).rename('B8A_second')
+var b112 = dataset.select('B11').median().clip(roi).rename('B11_second')
+var b122 = dataset.select('B12').median().clip(roi).rename('B12_second')
+
+////creating spectral index
+//ndvi
+var ndvi_82 = b8A2.subtract(b4).divide(b8A2.add(b4)).rename('NDVI_8A_second')
+//Map.addLayer(ndvi, null, 'ndvi')
+
+//ndvi B8A
+var ndvi2 = b82.subtract(b42).divide(b82.add(b42)).rename('NDVI_second')
+//Map.addLayer(ndvi2, null, 'ndvi2')
+
+//ndvi_7
+var ndvi_72 = b72.subtract(b42).divide(b72.add(b42)).rename('NDVI_7_second')
+//Map.addLayer(ndvi_72, null, 'ndvi_72')
+
+//ndvi_6
+var ndvi_62 = b62.subtract(b42).divide(b62.add(b42)).rename('NDVI_6_second')
+//Map.addLayer(ndvi_62, null, 'ndvi_62')
+
+//ndvi_5
+var ndvi_52 = b52.subtract(b42).divide(b52.add(b42)).rename('NDVI_5_second')
+//Map.addLayer(ndvi_52, null, 'ndvi_52')
+
+//Bare Soil Index
+var bsi2 = b42.add(b112).subtract(b82.add(b22)).divide(b42.add(b112).add(b82.add(b22))).rename('BSI_second')
+//Map.addLayer(bsi2, null, 'bsi2')
+
+//mndwi
+var mndwi2 = b32.subtract(b112).divide(b32.add(b112)).rename('MNDWI_second')//Xu 2005
+//Map.addLayer(mndwi2, null, 'mndwi2')
+
+//ndwi
+var ndwi2 = b32.subtract(b82).divide(b32.add(b82)).rename('NDWI_second')//Mc Feeters 1996
+//Map.addLayer(ndwi2, null, 'ndwi2')
+
+///////////////////////////////////////////////////July to september
+// define date
+var period_of_interest = ee.Filter.date('2023-06-01', '2023-09-30');
+
+//selecting sentinel images and defining parameters
+var dataset = ee.ImageCollection('COPERNICUS/S2_SR')
+                  .filter(period_of_interest)
+                  .filterBounds(roi)
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',10))
+                  .map(maskS2clouds);
+
+print("2 - Sentinel 2 Image Collection",dataset)
+print("3 - How much Sentinel 2 images we have? 3",dataset.size())
+
+// Calculating band median
+var b23 = dataset.select('B2').median().clip(roi).rename('B2_third')
+var b33 = dataset.select('B3').median().clip(roi).rename('B3_third')
+var b43 = dataset.select('B4').median().clip(roi).rename('B4_third')
+var b53 = dataset.select('B5').median().clip(roi).rename('B5_third')
+var b63 = dataset.select('B6').median().clip(roi).rename('B6_third')
+var b73 = dataset.select('B7').median().clip(roi).rename('B7_third')
+var b83 = dataset.select('B8').median().clip(roi).rename('B8_third')
+var b8A3 = dataset.select('B8A').median().clip(roi).rename('B8A_third')
+var b113 = dataset.select('B11').median().clip(roi).rename('B11_third')
+var b123 = dataset.select('B12').median().clip(roi).rename('B12_third')
+
+////creating spectral index
+//ndvi
+var ndvi3 = b83.subtract(b43).divide(b83.add(b43)).rename('NDVI_third')
+//Map.addLayer(ndvi3, null, 'ndvi3')
+
+//ndvi B8A
+var ndvi_83 = b8A3.subtract(b4).divide(b8A2.add(b4)).rename('NDVI_8A_third')
+//Map.addLayer(ndvi, null, 'ndvi')
+
+//ndvi_7
+var ndvi_73 = b73.subtract(b43).divide(b73.add(b43)).rename('NDVI_7_third')
+//Map.addLayer(ndvi_73, null, 'ndvi_73')
+
+//ndvi_6
+var ndvi_63 = b63.subtract(b43).divide(b63.add(b43)).rename('NDVI_6_third')
+//Map.addLayer(ndvi_63, null, 'ndvi_63')
+
+//ndvi_5
+var ndvi_53 = b53.subtract(b43).divide(b53.add(b43)).rename('NDVI_5_third')
+//Map.addLayer(ndvi_53, null, 'ndvi_53')
+
+//Bare Soil Index
+var bsi3 = b43.add(b113).subtract(b83.add(b23)).divide(b43.add(b113).add(b83.add(b23))).rename('BSI_third')
+//Map.addLayer(bsi3, null, 'bsi3')
+
+//mndwi
+var mndwi3 = b33.subtract(b113).divide(b33.add(b113)).rename('MNDWI_third')//Xu 2005
+//Map.addLayer(mndwi3, null, 'mndwi3')
+
+//ndwi
+var ndwi3 = b33.subtract(b83).divide(b33.add(b83)).rename('NDWI_third')//Mc Feeters 1996
+//Map.addLayer(ndwi3, null, 'ndwi3')
+
+///////////////////////////////////////////////////October to DECEMBER
+// define date
+var period_of_interest = ee.Filter.date('2023-10-01', '2023-12-31');
+
+//selecting sentinel images and defining parameters
+var dataset = ee.ImageCollection('COPERNICUS/S2_SR')
+                  .filter(period_of_interest)
+                  .filterBounds(roi)
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE',10))
+                  .map(maskS2clouds);
+
+print("2 - Sentinel 2 Image Collection",dataset)
+print("3 - How much Sentinel 2 images we have? 4",dataset.size())
+
+// Calculating band median
+var b24 = dataset.select('B2').median().clip(roi).rename('B2_fourth')
+var b34 = dataset.select('B3').median().clip(roi).rename('B3_fourth')
+var b44 = dataset.select('B4').median().clip(roi).rename('B4_fourth')
+var b54 = dataset.select('B5').median().clip(roi).rename('B5_fourth')
+var b64 = dataset.select('B6').median().clip(roi).rename('B6_fourth')
+var b74 = dataset.select('B7').median().clip(roi).rename('B7_fourth')
+var b84 = dataset.select('B8').median().clip(roi).rename('B8_fourth')
+var b8A4 = dataset.select('B8A').median().clip(roi).rename('B8A_fourth')
+var b114 = dataset.select('B11').median().clip(roi).rename('B11_fourth')
+var b124 = dataset.select('B12').median().clip(roi).rename('B12_fourth')
+
+////creating spectral index
+//ndvi
+var ndvi4 = b84.subtract(b44).divide(b84.add(b44)).rename('NDVI_fourth')
+//Map.addLayer(ndvi4, null, 'ndvi4')
+
+//ndvib8a
+var ndvi_84 = b8A4.subtract(b4).divide(b8A4.add(b4)).rename('NDVI_B8A_fourth')
+//Map.addLayer(ndvi, null, 'ndvi')
+
+//ndvi_7
+var ndvi_74 = b74.subtract(b44).divide(b74.add(b44)).rename('NDVI_7_fourth')
+//Map.addLayer(ndvi_74, null, 'ndvi_74')
+
+//ndvi_6
+var ndvi_64 = b64.subtract(b44).divide(b64.add(b44)).rename('NDVI_6_fourth')
+//Map.addLayer(ndvi_64, null, 'ndvi_64')
+
+//ndvi_5
+var ndvi_54 = b54.subtract(b44).divide(b54.add(b44)).rename('NDVI_5_fourth')
+//Map.addLayer(ndvi_5, null, 'ndvi_5')
+
+//Bare Soil Index
+var bsi4 = b44.add(b114).subtract(b84.add(b24)).divide(b44.add(b114).add(b84.add(b24))).rename('BSI_fourth')
+//Map.addLayer(bsi4, null, 'bsi4')
+
+//mndwi
+var mndwi4 = b34.subtract(b114).divide(b34.add(b114)).rename('MNDWI_fourth')//Xu 2005
+//Map.addLayer(mndwi4, null, 'mndwi4')
+
+//ndwi
+var ndwi4 = b34.subtract(b84).divide(b34.add(b84)).rename('NDWI_fourth')//Mc Feeters 1996
+//Map.addLayer(ndwi4, null, 'ndwi4')
+
+
+//Composite a data cube
+var cb = ndwi.addBands(mndwi).addBands(bsi).addBands(ndvi_5).addBands(ndvi_6).addBands(ndvi_7)
+.addBands(ndvi).addBands(b2).addBands(b3).addBands(b4).addBands(b5).addBands(b6).addBands(b7)
+.addBands(b8).addBands(b11).addBands(b12).addBands(ndwi1).addBands(mndwi1).addBands(bsi1).addBands(ndvi_51).
+addBands(ndvi_61).addBands(ndvi_71).addBands(ndvi1).addBands(b21).addBands(b31).addBands(b41)
+.addBands(b51).addBands(b61).addBands(b71).addBands(b81).addBands(b111).addBands(b121).addBands(ndwi2)
+.addBands(mndwi2).addBands(bsi2).addBands(ndvi_52).addBands(ndvi_62).addBands(ndvi_72).addBands(ndvi2)
+.addBands(b22).addBands(b32).addBands(b42).addBands(b52).addBands(b62).addBands(b72).addBands(b82)
+.addBands(b112).addBands(b122).addBands(ndwi3).addBands(mndwi3).addBands(bsi3).addBands(ndvi_53)
+.addBands(ndvi_63).addBands(ndvi_73).addBands(ndvi3).addBands(b23).addBands(b33).addBands(b43).
+addBands(b53).addBands(b63).addBands(b73).addBands(b83).addBands(b113).addBands(b123).addBands(ndwi4)
+.addBands(mndwi4).addBands(bsi4).addBands(ndvi_54).addBands(ndvi_64).addBands(ndvi_74).addBands(ndvi4)
+.addBands(b24).addBands(b34).addBands(b44).addBands(b54).addBands(b64).addBands(b74).addBands(b84)
+.addBands(b114).addBands(b124).addBands(b8A).addBands(b8A1).addBands(b8A2).addBands(b8A3).addBands(b8A4)
+.addBands(ndvi_8).addBands(ndvi_81).addBands(ndvi_82).addBands(ndvi_83).addBands(ndvi_84)
+
+//Rescale the data
+var cb = cb.reproject('EPSG:32722', null, 20)
+//Printing the cube data
+var bands = cb.bandNames();
+print(bands)
+//Adding a true color composition
+Map.addLayer(cb, ['B4','B3','B2'], 'cb')
+
+//random forest classification
+//Extracting the informations from cube data variables to banana plantations samples
+var bananasamples = cb.sampleRegions({
+  collection: banana,
+  scale: 20,
+  geometries: true
+}).randomColumn('random').limit(1000, 'random', false)
+
+//Extracting the informations from cube data variables to banana other uses samples
+var othersamples = cb.sampleRegions({
+  collection: other,
+  scale: 20,
+  geometries: true
+}).randomColumn('random').limit(1000, 'random', false)
+
+//Merging the samples
+var allsamples = bananasamples.merge(othersamples)
+
+// //Creating a random column column from 0 to 1
+allsamples = allsamples.randomColumn('random',123)
+print('How much samples we have?', allsamples)
+
+// divinding the samples for training and vadidation training
+var training = allsamples.filter(ee.Filter.lt('random', 0.7));
+var testing = allsamples.filter(ee.Filter.gte('random', 0.7));
+
+// Random forest classification
+var classifier = ee.Classifier.smileRandomForest({
+numberOfTrees: 128,
+seed: 123,
+}).train(training,'class',bands)
+var classified = cb.classify(classifier)
+Map.addLayer(classified, {min: 1, max: 2}, 'classified')
+print(classified)
+
+//relative importance of variables to  the classification
+var rf_dict = classifier.explain();
+    print('Explain:',rf_dict);
+var rf_variable_importance = ee.Feature(null, ee.Dictionary(rf_dict).get('importance'));
+
+//relative importance in % 
+var importance = ee.Dictionary(
+  classifier.explain().get('importance')
+)
+var totalImportance = importance.values().reduce(ee.Reducer.sum())
+var importancePercentage = importance.map(function (band, importance) {
+  return ee.Number(importance).divide(totalImportance).multiply(100)
+})
+//print(importancePercentage);
+var importance_percentage_geometry = ee.Feature(null, importancePercentage)
+
+//print the importance of variables in a graph
+var rf_percentage_chart =
+ui.Chart.feature.byProperty({features: importance_percentage_geometry})
+.setChartType('BarChart')
+.setOptions({
+title: 'Importance of variables in Random Forest classification (%)',
+legend: {position: 'none'},
+vAxis: {title: 'Variables',
+  titleTextStyle: {italic: false, bold: false}},
+hAxis: {title: 'Importance in %',
+  fontName: 'times new roman',
+  titleTextStyle: {italic: false, bold: false}},
+colors: ['silver'],
+//viewWindow: {min: 0, max: 12},
+//fontName: 'times new roman', fontSize: 40, 
+});
+print(rf_percentage_chart);
+
+//Post classification filters
+//3x3
+var kernel = ee.Kernel.square({
+  radius: 1, 
+  units: 'pixels'
+});
+
+var smoothed_3x3 = classified.focal_mode({
+  kernel: kernel,
+  iterations: 1 
+});
+
+//5x5
+var kernel = ee.Kernel.square({
+  radius: 2, 
+  units: 'pixels'
+});
+
+var smoothed_5x5 = classified.focal_mode({
+  kernel: kernel,
+  iterations: 1 
+});
+
+//7x7
+var kernel = ee.Kernel.square({
+  radius: 3, 
+  units: 'pixels'
+});
+
+var smoothed_7x7 = classified.focal_mode({
+  kernel: kernel,
+  iterations: 1 
+});
+
+//9x9
+var kernel = ee.Kernel.square({
+  radius: 4, 
+  units: 'pixels'
+});
+
+var smoothed_9x9 = classified.focal_mode({
+  kernel: kernel,
+  iterations: 1 
+});
+
+//11x11
+var kernel = ee.Kernel.square({
+  radius: 5, 
+  units: 'pixels'
+});
+
+var smoothed_11x11 = classified.focal_mode({
+  kernel: kernel,
+  iterations: 1 
+});
+
+//13x13
+var kernel = ee.Kernel.square({
+  radius: 6, 
+  units: 'pixels'
+});
+
+var smoothed_13x13 = classified.focal_mode({
+  kernel: kernel,
+  iterations: 1 
+});
+
+//15x15
+var kernel = ee.Kernel.square({
+  radius: 7, 
+  units: 'pixels'
+});
+
+var smoothed_15x15 = classified.focal_mode({
+  kernel: kernel,
+  iterations: 1 
+});
+
+// training accuracy 
+var acuraciaClassificador = testing.classify(classifier)
+var matrizConfusao = acuraciaClassificador.errorMatrix('classe','classification')
+print('Matriz Confusao',matrizConfusao)
+print('Acuracia Geral',matrizConfusao.accuracy())
+print('Acuracia Consumidor',matrizConfusao.consumersAccuracy())
+print('Acuracia Produtor',matrizConfusao.producersAccuracy())
+print('Kappa', matrizConfusao.kappa())
+print('RF error matrix_training: ', classifier.confusionMatrix());
+print('RF accuracy_training: ', classifier.confusionMatrix().accuracy());
+
+
+//Creating banana plantation samples
+var banana_ = classified.mask(smoothed_7x7.eq(1))
+Map.addLayer(banana_)
+
+var occurence = ee.Image.random()
+    .updateMask(banana_).int()
+    .stratifiedSample({
+      numPoints: 200, 
+      region: roi, 
+      scale: 30, 
+      geometries: true})
+    .map(function(f) {
+        return f.set('class', 1)
+    })
+
+Map.addLayer(occurence, null, 'banana')
+
+
+//Creating other uses samples
+
+//////////////Euclidean distance banana plantation//////////////
+
+var banana1 = smoothed_7x7.eq(1)
+
+    //setting the size
+ //euclidean Distance.
+var maxDistM = 200;  
+
+    //calculate distance to target pixels
+var euclideanKernel = ee.Kernel.euclidean(maxDistM, 'meters');
+var visParamsEuclideanDist = {min: 0, max: maxDistM};
+
+    //applying the Euclidean distance function
+var bananat = banana1.distance(euclideanKernel).clip(roi);
+    Map.addLayer(bananat);
+
+var other_ = classified.mask(classified.eq(2))
+Map.addLayer(other_)
+
+var othert = ee.Image.random()
+    .updateMask(other_).int()
+    .stratifiedSample({
+      numPoints: 100, 
+      region: roi, 
+      scale: 30, 
+      geometries: true})
+    .map(function(f) {
+        return f.set('class', 2)
+    })
+
+Map.addLayer(othert, null, 'other')
+
+var bananat = bananat.mask(bananat.lte(200))
+Map.addLayer(bananat, null, 'banana1000')
+
+var otherp = ee.Image.random()
+    .updateMask(bananat).int()
+    .stratifiedSample({
+      numPoints: 100, 
+      region: roi, 
+      scale: 30, 
+      geometries: true})
+    .map(function(f) {
+        return f.set('class', 2)
+    })
+
+//otherp = otherp.filter(ee.Filter.bounds(banana_).not())
+Map.addLayer(otherp, null, 'other')
+
+//Grouping samples set
+var samples_validation = occurence.merge(otherp).merge(othert)
+print(samples_validation)
+
+Export.table.toDrive({
+  collection:samples_validation, 
+  description:'samples_validation',
+    folder:'banana', 
+  fileFormat:'SHP',
+})
+
+Export.image.toDrive({
+  image:smoothed_3x3, 
+  description:'smoothed_3x3',
+  folder:'banana', 
+  region:roi, 
+  scale:20, 
+  crs:'EPSG:4674', 
+  maxPixels:1e13
+})
+
+Export.image.toDrive({
+  image:smoothed_5x5, 
+  description:'smoothed_5x5',
+  folder:'banana', 
+  region:roi, 
+  scale:20, 
+  crs:'EPSG:4674', 
+  maxPixels:1e13
+})
+
+Export.image.toDrive({
+  image:smoothed_7x7, 
+  description:'smoothed_7x7',
+  folder:'banana', 
+  region:roi, 
+  scale:20, 
+  crs:'EPSG:4674', 
+  maxPixels:1e13
+})
+
+Export.image.toDrive({
+  image:smoothed_9x9, 
+  description:'smoothed_9x9',
+  folder:'banana', 
+  region:roi, 
+  scale:20, 
+  crs:'EPSG:4674', 
+  maxPixels:1e13
+})
+
+Export.image.toDrive({
+  image:smoothed_11x11, 
+  description:'smoothed_11x11',
+  folder:'banana', 
+  region:roi, 
+  scale:20, 
+  crs:'EPSG:4674', 
+  maxPixels:1e13
+})
+
+Export.image.toDrive({
+  image:smoothed_13x13, 
+  description:'smoothed_13x13',
+  folder:'banana', 
+  region:roi, 
+  scale:20, 
+  crs:'EPSG:4674', 
+  maxPixels:1e13
+})
+
+Export.image.toDrive({
+  image:smoothed_15x15, 
+  description:'smoothed_15x15',
+  folder:'banana', 
+  region:roi, 
+  scale:20, 
+  crs:'EPSG:4674', 
+  maxPixels:1e13
+})
+
+Export.image.toDrive({
+  image:classified, 
+  description:'classified',
+  folder:'banana', 
+  region:roi, 
+  scale:20, 
+  crs:'EPSG:4674', 
+  maxPixels:1e13
+})
